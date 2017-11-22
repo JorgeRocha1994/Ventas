@@ -1,0 +1,154 @@
+﻿@using ConCredito_Vendimia.Models
+
+@{
+    ViewBag.Title = "Ventas";
+}
+
+<div class="titlePage">
+    <span class="fa fa-shopping-cart"></span>
+    <label>Ventas Activas</label>
+    <hr />
+
+    <div class="ParametrosFiltros left">
+        <label>Buscar</label><br />
+        <input id="Busqueda" type="text" class="k-textbox" onkeyup="if(event.keyCode == 13) onClickBuscar()" style="width:300px;" autofocus tabindex="0" />
+    </div>
+
+    <div class="ParametrosFiltros left">
+        <label>Filtrar</label><br />
+        @(Html.Kendo()
+        .DropDownList()
+        .Name("FiltroBusqueda")
+        .HtmlAttributes(new { id = "FiltroBusqueda", style = "width:100px;", tabindex="1" })
+        .BindTo(new List<SelectListItem>()
+        {
+            new SelectListItem()
+            {
+                Text = "Ventas", Value="0"
+            },
+            new SelectListItem()
+            {
+                Text = "Clientes", Value="1"
+            }
+        })
+        )
+    </div>
+    
+    <div class="ParametrosFiltros left">
+        <label>Fecha Inicial</label><br />
+        @Html.TextBox("FechaInicial", new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1), new { id = "FechaInicial", tabindex="2", style = "width:120px;"})
+    </div>
+    
+    <div class="ParametrosFiltros left">
+        <label>Fecha Final</label><br />
+        @Html.TextBox("FechaFinal", DateTime.Now.ToShortDateString(), new { id = "FechaFinal", tabindex="3", style = "width:120px;" })
+    </div>
+
+    <div class="ParametrosFiltros left">
+        <br />
+        <button type="button" class="class-button k-button" tabindex="4" onclick="onClickBuscar()">
+            <i class="fa fa-search"></i>
+            <span>Buscar</span>
+        </button>
+    </div> 
+
+    <div class="ParametrosFiltros right">
+        <br />
+        <button type="button" class="class-button k-button" tabindex="5" onclick="onClickNuevaVenta()">
+            <i class="fa fa-plus"></i>
+            <span>Nueva Venta</span>
+        </button>
+    </div>
+</div>
+
+<div class="class-grid">
+    @(Html.Kendo()
+        .Grid<Ventas>()
+        .Name("gridVentas")
+        .Columns(columns =>
+        {
+            columns.Bound(p => p.IdVenta).Title("Folio Venta").Width("15%").HtmlAttributes(new { id = "ClaveVenta" }).Format("{0:0000}");
+            columns.Bound(p => p.Cliente).Title("Cliente").Width("50%").HtmlAttributes(new { id = "Cliente" });
+            columns.Bound(p => p.TotalAdeudo).Title("Total").Width("15%").HtmlAttributes(new { id = "Total", style = "text-align: right;" }).HeaderHtmlAttributes(new { style = "text-align: right;" }).Format("{0:#,#0.00}");
+            columns.Bound(p => p.Fecha).Title("Fecha").Width("10%").HtmlAttributes(new { id = "Fecha", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" }).Format("{0:dd/MM/yyyy}");
+            columns.Bound(p => p.Estatus).Title("Estatus").Width("10%").HtmlAttributes(new { id = "Estatus", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" });
+        })
+        .Selectable(selectable => selectable.Mode(GridSelectionMode.Single))
+        .Navigatable()
+        .Scrollable(s => s.Height(250))
+        .AutoBind(true)
+        .Resizable(resize => resize.Columns(true))
+        .DataSource(datasource => datasource
+            .Ajax()
+            .Batch(true)
+            .PageSize(10)
+            .Read(read => read.Action("ObtenerVentas", "Ventas").Data("datosAdicionalesVentas"))
+        )
+        .Events(GVEvent =>
+        {
+            GVEvent.DataBound("onDataBoundGridVentas");
+        })
+        .Pageable(p => p.ButtonCount(5))
+    )
+</div>
+
+<script>
+
+    var gridVentas;
+
+    $(document).ready(function () {
+        $("#FechaInicial").kendoDatePicker({ format: "dd/MM/yyyy" });
+        $("#FechaFinal").kendoDatePicker({ format: "dd/MM/yyyy" });
+
+        gridVentas = $("#gridVentas").data("kendoGrid");
+    });
+
+    function onClickNuevaVenta() {
+        var url = '@Url.Action("RegistroVentas", "Ventas")'
+        window.location.href = url; 
+    }
+
+    function datosAdicionalesVentas() {
+        var busqueda = $("#Busqueda").val();
+        var filtro = $("#FiltroBusqueda").val();
+        filtro = (filtro === "" || filtro === undefined || filtro === null) ? 0 : parseInt(filtro);
+        var fechaInicial = $("#FechaInicial").val();
+        var fechaFinal = $("#FechaFinal").val();
+
+        return {
+            Busqueda: busqueda, Filtro: filtro, FechaInicial: fechaInicial, FechaFinal: fechaFinal
+        }
+    }
+
+    function onClickBuscar() {
+        gridVentas.dataSource.page(1);
+        gridVentas.dataSource.read();
+    }
+
+    function onDataBoundGridVentas(e) {
+        if (gridVentas == undefined || gridVentas == null) {
+            gridVentas = $("#gridVentas").data("kendoGrid");
+        }
+
+        SeleccionarPrimeroVentas();
+    }
+
+    function SeleccionarPrimeroVentas() {
+        var primerTR = gridVentas.tbody.children()[0];
+
+        if ($(primerTR).hasClass("k-no-data")) {
+            $(primerTR).remove();
+            MensajeError('No fue posible obtener ningún dato, intente registrar una nueva Venta.');
+        }
+        else {
+            if (gridVentas.dataSource._data.length <= 0) {
+                $(primerTR).remove();
+                MensajeError('No fue posible obtener ningún dato, intente registrar una nueva Venta.');
+            }
+            else {
+                gridVentas.select(primerTR);
+            }            
+        }
+    }
+
+</script>

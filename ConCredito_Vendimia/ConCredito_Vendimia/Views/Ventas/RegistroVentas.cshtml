@@ -1,0 +1,844 @@
+﻿@using ConCredito_Vendimia.Models
+
+@{
+    ViewBag.Title = "Registro de Ventas";
+}
+
+<style type="text/css">
+    .class-parent-div {
+        margin-top: 20px;
+        width: 100%;
+        text-align: center;
+        background: #fff;
+    }
+
+    .div-select {
+        background: #8bdc64;
+    }
+    
+    .div-unselect {
+        background: #f1f1f1;
+    }
+
+        .div-unselect:hover {
+            background: #d6d6d6;
+        }
+
+    .class-child-div {
+        transition: all 0.3s;
+        padding: 5px;
+        width: 22%;
+        height: auto;
+        display: inline-block;        
+        margin: 5px;        
+        cursor: pointer;
+    }
+</style>
+
+<div class="titlePage">
+    <span class="fa fa-cart-plus"></span>
+    <label>Registro de Ventas</label>
+    @Html.Hidden("IdVenta", 0, new { id = "IdVenta" })
+    <label id="lblFolioVenta" class="right"></label>
+    <hr />
+
+    <div class="left">
+        <div class="ParametrosFiltros left" style="display:inline-block;">
+            @Html.Hidden("IdCliente", 0, new { id = "IdCliente" })
+            <label>Cliente</label><br />
+            <input type="text" id="txtCliente" class="k-textbox" style="width:300px; background-color: #fff;" autofocus tabindex="0" />
+        </div>
+        <div class="ParametrosFiltros left" style="display:block;">
+            <br />
+            <label id="ClienteRFC" style="margin-top:7px;"></label>
+        </div>
+
+        <br />
+        <br />
+        <br />
+
+        <div class="ParametrosFiltros left" style="display:block;">
+            @Html.Hidden("IdArticulo", string.Empty, new { id = "IdArticulo" })
+            <label>Artículo</label><br />
+            <input type="text" id="txtArticulo" class="k-textbox" style="width:300px; background-color: #fff;" tabindex="1" />
+        </div>
+
+        <div class="ParametrosFiltros left">
+            <br />
+            <button type="button" class="class-button k-button" tabindex="2" onclick="onClickAgregar()">
+                <i class="fa fa-plus"></i>
+                <span>Agregar</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="right">
+        <div class="ParametrosFiltros right">
+            <label>Enganche: </label>
+            <input type="text" id="txtEnganche" class="k-textbox" style="width:150px; text-align:right;" readonly />
+        </div>
+
+        <br />
+        <br />
+
+        <div class="ParametrosFiltros right">
+            <label>Bonificación Enganche: </label>
+            <input type="text" id="txtBonEnganche" class="k-textbox" style="width:150px; text-align:right;" readonly />
+        </div>
+
+        <br />
+        <br />
+
+        <div class="ParametrosFiltros right">
+            <label>Total: </label>
+            <input type="text" id="txtTotalAdeudo" class="k-textbox" style="width:150px; text-align:right;" readonly />
+        </div>
+    </div>
+</div>
+
+<div class="class-grid">
+    <div id="gridCapturaVentasDetalle"></div>
+</div>
+
+<div id="divParentAbonos" class="class-parent-div" style="display:none;">
+    <h4>Abonos Mensuales</h4>
+    <div id="div3Abonos" class="class-child-div div-unselect"></div>
+    <div id="div6Abonos" class="class-child-div div-unselect"></div>
+    <div id="div9Abonos" class="class-child-div div-unselect"></div>
+    <div id="div12Abonos" class="class-child-div div-unselect"></div>
+    @Html.Hidden("AbonoSeleccionado", string.Empty, new { id = "AbonoSeleccionado" })
+</div>
+
+<div class="titlePage right">
+    <div id="divGuardar" class="ParametrosFiltros" style="display: none;">
+        <button type="button" class="class-button k-button" tabindex="3" onclick="onClickGuardar(false)">
+            <i class="fa fa-floppy-o"></i>
+            <span>Guardar</span>
+        </button>
+    </div>
+    <div id="divGuardarCerrar" class="ParametrosFiltros" style="display: none;">
+        <button type="button" class="class-button k-button" tabindex="4" onclick="onClickGuardar(true)">
+            <i class="fa fa-reply"></i>
+            <span>Guardar y Cerrar</span>
+        </button>
+    </div>
+    <div id="divSiguiente" class="ParametrosFiltros">
+        <button type="button" class="class-button k-button" tabindex="5" onclick="onClickSiguiente()">
+            <i class="fa fa-arrow-right"></i>
+            <span>Siguiente</span>
+        </button>
+    </div>
+    <div id="divCancelar" class="ParametrosFiltros">
+        <button type="button" class="class-button k-button" tabindex="6" onclick="onClickCancelar(true)">
+            <i class="fa fa-ban"></i>
+            <span>Cancelar</span>
+        </button>
+    </div>
+</div>
+
+<script>
+
+    kendo.culture("es-MX");
+
+    var Configuraciones;
+
+    var Enganche = 0;
+    var BonifEnganche = 0;
+    var TotalAdeudo = 0;
+    var ImporteArticulos = 0;
+
+    var gridVentasDetalle;
+
+    var ClienteCancelado = false;
+    var ArticuloSinExistencia = false;
+    var ArticuloCancelado = false;
+
+    $(document).ready(function () {
+
+        ObtenerVentaConsecutiva();
+        ObtenerEntidadConfiguraciones();
+
+        $("#txtCliente").kendoAutoComplete({
+            minLength: 3,
+            ignoreCase: true,
+            placeholder: "Nombre Completo",
+            noDataTemplate: 'Sin resultados!',
+            dataTextField: "NombreCompleto",
+            footerTemplate: '<strong>Total de resultados: #: instance.dataSource.total() #</strong>',
+            dataValueField: "IdCliente",
+            select: function (e) {
+                if (e.dataItem.Estatus == "Cancelado") {
+
+                    ClienteCancelado = true;
+                    MensajeError('El Cliente seleccionado esta Cancelado, favor de verificar.');
+                    e.preventDefault();
+
+                    $("#txtCliente").select();
+                    $("#txtCliente").focus();
+                }
+                else {
+                    ClienteCancelado = false;
+                    $("#ClienteRFC").text("RFC: " + e.dataItem.RFC);
+                    $("#IdCliente").val(e.dataItem.IdCliente);
+                }
+            },
+            dataSource: new kendo.data.DataSource({
+                transport: {
+                    read: '@Url.Action("ObtenerClientesAutoComplete", "Home")'
+                }
+            })
+        });
+
+        $("#txtArticulo").kendoAutoComplete({
+            minLength: 3,
+            ignoreCase: true,
+            placeholder: "Descripción del Artículo",
+            noDataTemplate: 'Sin resultados!',
+            dataTextField: "Descripcion",
+            footerTemplate: '<strong>Total de resultados: #: instance.dataSource.total() #</strong>',
+            dataValueField: "IdArticulo",
+            select: function (e) {
+                if (e.dataItem.Existencia <= 0) {
+
+                    ArticuloSinExistencia = true;
+                    MensajeError('El Artículo (' + e.dataItem.IdArticulo + ') seleccionado no cuenta con existencia, favor de verificar.');
+                    e.preventDefault();
+
+                    $("#txtArticulo").select();
+                    $("#txtArticulo").focus();
+                }
+                else if (e.dataItem.Estatus == "Cancelado") {
+
+                    ArticuloCancelado = true;
+                    MensajeError('El Artículo (' + e.dataItem.IdArticulo + ') seleccionado esta Cancelado, favor de verificar.');
+                    e.preventDefault();
+
+                    $("#txtArticulo").select();
+                    $("#txtArticulo").focus();
+                }
+                else {
+                    ArticuloSinExistencia = false;
+                    ArticuloCancelado = false;
+                    $("#IdArticulo").val(e.dataItem.IdArticulo);
+                }
+            },
+            dataSource: new kendo.data.DataSource({
+                transport: {
+                    read: '@Url.Action("ObtenerArticulosAutoComplete", "Home")'
+                }
+            })
+        });
+
+        generarGridVentasDetalle();
+        gridVentasDetalle = $("#gridCapturaVentasDetalle").data("kendoGrid");
+
+        $("#txtEnganche").val(Enganche.toFixed(2));
+        $("#txtBonEnganche").val(BonifEnganche.toFixed(2));
+        $("#txtTotalAdeudo").val(TotalAdeudo.toFixed(2));
+    });
+
+    $("#divParentAbonos").click(function (e) {
+        var divClick = e.target;
+
+        //Es <b>
+        if (!$(divClick).is("div")) {
+            divClick = divClick.parentElement;
+        }
+
+        //Es <h4>
+        if (!$(divClick).is("div")) {
+            divClick = divClick.parentElement;
+        }
+
+        if ($(divClick).is("div[id='divParentAbonos']")) {
+            return;
+        }
+
+        var TodosDivs = $(e.currentTarget.childNodes).filter("div");
+
+        $.each(TodosDivs, function (key, item) {
+            $(item).removeClass("div-select");
+            $(item).addClass("div-unselect");
+        });
+
+        var Plazo = parseInt($(divClick)[0].firstChild.innerText) || parseInt($(divClick)[0].firstChild.outerText);
+        Plazo = (Plazo != undefined && Plazo != null && Plazo > 0) ? Plazo : 0;
+
+        if (Plazo <= 0) {
+            MensajeError("Ha ocurrido un erro al seleccionar la opción, intente de nuevo o mas tarde. Refresque la pagina si el error persiste.");
+            return;
+        }
+
+        $(divClick).removeClass("div-unselect");
+        $(divClick).addClass("div-select");
+
+        var precioContado = TotalAdeudo / (1 + ((Configuraciones.TasaFinanciamiento * Configuraciones.PlazoMaximo) / 100));
+        var totalPagar = precioContado * (1 + (Configuraciones.TasaFinanciamiento * Plazo) / 100);
+        var importeAbono = totalPagar / Plazo;
+        var importeAhorro = TotalAdeudo - totalPagar;
+
+        var Abono = {
+            TotalPagar: Math.round(parseFloat(totalPagar)),
+            PrecioContado: Math.round(parseFloat(precioContado)),
+            ImporteAbono: Math.round(parseFloat(importeAbono)),
+            ImporteAhorro: Math.round(parseFloat(importeAhorro)),
+            PlazoPago: Plazo,
+        }
+
+        $("#AbonoSeleccionado").val(JSON.stringify(Abono));
+    });
+
+    function ObtenerEntidadConfiguraciones() {
+        $.ajax({
+            url: '@Url.Action("ObtenerEntidadConfiguraciones", "Ventas")',
+            async:false,
+             success: function (data) {
+                 if (data !== null && data !== "") {
+                     Configuraciones = data;
+                 }
+             }
+         });
+    }
+
+    function ObtenerVentaConsecutiva() {
+        $.ajax({
+            url: '@Url.Action("ObtenerVentaConsecutiva", "Ventas")',
+            async:false,
+             success: function (data) {
+                 if (data !== null && data !== "") {
+                     var datos = JSON.parse(data);
+                     if (datos.Estatus === "Correcto") {
+                         $("#lblFolioVenta").text("Folio: " + formatoCero(parseInt(datos.Resultado), 5));
+                         $("#IdVenta").val(parseInt(datos.Resultado));
+                     }
+                     else if (datos.Estatus === "Error") {
+                         MensajeError(datos.Resultado);
+                         $("#IdVenta").val(0);
+                     }
+                 }
+             }
+         });
+    }
+
+    function generarGridVentasDetalle() {
+        $("#gridCapturaVentasDetalle").kendoGrid({
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: '@Url.Action("AgregarArticulosVenta", "Ventas")',
+                        data: function () {
+                            if (gridVentasDetalle == undefined || gridVentasDetalle == null) {
+                                return false;
+                            }
+
+                            var idArticulo = $("#IdArticulo").val();
+                            var listaActual = gridVentasDetalle.dataSource._data;
+
+                            if (listaActual == undefined || listaActual.length <= 0) {
+                                listaActual = "";
+                            }
+
+                            return { IdArticulo: idArticulo, ListaActual: JSON.stringify(listaActual) }
+                        }
+                    }
+                },
+                schema: {
+                    data: "Data",
+                    model: {
+                        id: "Indice",
+                        fields: {
+                            IdVenta: { editable: false },
+                            IdDetalle: { editable: false },
+                            IdArticulo: { editable: false },
+                            DescripcionArticulo: { editable: false },
+                            Articulo: { editable: false },
+                            Existencia: { editable: false, defaultValue: 0 },
+                            Modelo: { editable: false },
+                            Cantidad: { editable: true, type: "number", defaultValue: 1 },
+                            Precio: { editable: false, type: "number", defaultValue: 0 },
+                            PrecioInteres: { editable: false, type: "number", defaultValue: 0 },
+                            Importe: { editable: false, type: "number", defaultValue: 0 },
+                            Estatus: { editable: false }
+                        }
+                    }
+                }
+            },
+            height: 325,
+            sortable: false,
+            scrollable: true,
+            autobind: false,
+            navigatable: true,
+            draggable: false,
+            selectable: true,
+            editable: {
+                createAt: "bottom"
+            },
+            resizable: true,
+            culture: "es-MX",
+            columns: [
+                { field: "IdVenta", hidden: true, width: "0px", attributes: { "data-id": "IdVenta" } },
+                { field: "IdDetalle", hidden: true, width: "0px", attributes: { "data-id": "IdDetalle" } },
+                { field: "IdArticulo", hidden: true, width: "0px", attributes: { "data-id": "IdArticulo" } },
+                { field: "Precio", hidden: true, width: "0px", attributes: { "data-id": "Precio" } },
+                { field: "Estatus", hidden: true, width: "0px", attributes: { "data-id": "Estatus" } },
+                { field: "DescripcionArticulo", title: "Artículo", width: "35%", attributes: { id: "DescripcionArticulo", "data-id": "DescripcionArticulo" } },
+                { field: "Modelo", title: "Modelo", width: "25%", attributes: { id: "Modelo", "data-id": "Modelo" } },
+                { field: "Existencia", title: "Existencia", width: "8%", attributes: { "data-id": "Existencia", style: "text-align:right;", "data-id": "Existencia" }, headerAttributes: { style: "text-align:right;" }, format: "{0:#,#0.00}" },
+                { field: "Cantidad", title: "Cantidad", width: "9%", attributes: { id: "Cantidad", style: "text-align:right;", "data-id": "Cantidad" }, headerAttributes: { style: "text-align:right;" }, format: "{0:#,#0.00}", editor: editorNumber },
+                { field: "PrecioInteres", title: "Precio", width: "8%", attributes: { id: "PrecioInteres", style: "text-align:right;", "data-id": "PrecioInteres" }, headerAttributes: { style: "text-align:right;" }, format: "{0:#,#0.00}" },
+                { field: "Importe", title: "Importe", width: "8%", attributes: { id: "Importe", style: "text-align:right;", "data-id": "Importe" }, headerAttributes: { style: "text-align:right;" }, format: "{0:#,#0.00}" },
+                { command: { name: "Eliminar", text: " ", iconClass: "fa fa-trash", click: EliminarRenglon }, width: "7%"}
+            ],
+            dataBound: function (e) {
+                CalcularTotales();
+            }
+        });
+    }
+
+    function EliminarRenglon(e) {
+        e.preventDefault();
+        var dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+
+        swal({
+            title: "Eliminar Artículo",
+            text: "¿Esta seguro de cancelar el Artículo de la Venta?",
+            icon: "warning",
+            buttons: {
+                cancel: "Cancelar",
+                ok: {
+                    text: "Aceptar",
+                    value: true,
+                }
+            },
+            dangerMode: true,
+        }).then((value) => {
+            if (value) {
+                gridVentasDetalle.dataSource.remove(dataItem);
+                CalcularTotales();
+            }
+        });
+    }
+
+    function editorNumber(container, options) {
+        $('<input onblur="ValidarExistencia(event)" data-bind="value:' + options.field + '" name="' + options.field + '" class="k-textbox" style="height: 30px; width: 100%; text-align: right;" />')
+            .appendTo(container)
+    }
+
+    function onClickAgregar(event) {
+
+        var generoError = false;
+
+        var idCliente = $("#IdCliente").val();
+        if (idCliente == undefined || idCliente == null || parseInt(idCliente) <= 0) {
+            MensajeWarning("No es posible continuar debe ingresar el Cliente, es obligatorio.");
+            $("#txtCliente").select();
+            $("#txtCliente").focus();
+            generoError = true;
+            return false;
+        }
+
+        var idArticulo = $("#IdArticulo").val();
+        if (idArticulo == undefined || idArticulo == null || idArticulo == "") {
+            MensajeWarning("No es posible continuar debe ingresar el Artículo, es obligatorio.");
+            $("#txtArticulo").select();
+            $("#txtArticulo").focus();
+            generoError = true;
+            return false;
+        }
+
+        var listaActual = gridVentasDetalle.dataSource._data;
+        if (listaActual != "" && listaActual != null && listaActual.length > 0) {
+            $.each(listaActual, function (key, item) {
+                if (item.IdArticulo == idArticulo) {
+                    MensajeWarning("No es posible continuar, el Artículo (" + item.IdArticulo + ") ya ha sido agregado.");
+                    $("#txtArticulo").select();
+                    $("#txtArticulo").focus();
+                    generoError = true;
+                    return false;
+                }
+            });
+        }
+
+        if (!generoError) {
+            gridVentasDetalle.dataSource.read();
+            $("#txtArticulo").val("");
+            $("#IdArticulo").val("");
+        }
+    }
+
+    function onClickCancelar(VentanaModal) {
+        if (VentanaModal) {
+            swal({
+            title: "Cancelar Venta",
+            text: "¿Esta seguro de cancelar la Venta actual?",
+            icon: "warning",
+            buttons: {
+                cancel: "Cancelar",
+                ok: {
+                    text: "Aceptar",
+                    value: true,
+                }
+            },
+            dangerMode: true,
+        }).then((value) => {
+            if (value) {
+                var url = '@Url.Action("Index", "Home")';
+                window.location.href = url;
+            }
+        });
+        }
+        else {
+            var url = '@Url.Action("Index", "Home")';
+            window.location.href = url;
+        }
+    }
+
+    function onClickSiguiente() {
+        if (ValidarInformacion()) {
+
+            var target = $("div[class='body-content']");
+            $(target).animate({ scrollTop: target.height() }, 'slow');
+
+            $("#divSiguiente").hide("fast");
+            $("#divGuardar").show("fast");
+            $("#divGuardarCerrar").show("fast");
+            $("#divParentAbonos").show("fast");
+        }
+    }
+
+    function onClickGuardar(GuardadrCerrar) {
+        if (ValidarInformacion()) {
+
+            var AbonoSeleccionado = $("#AbonoSeleccionado").val();
+            if (AbonoSeleccionado == undefined || AbonoSeleccionado == null || AbonoSeleccionado == "") {
+                MensajeError("Debe seleccionar un plazo para realizar el pago de su compra");
+                return;
+            }
+            
+            var jsonEntidad = JSON.stringify(ObtenerEntidad());
+
+            if (jsonEntidad == undefined || jsonEntidad == null) {
+                MensajeError("No fue posible obtener todos los datos de la venta, intente de nuevo o mas tarde. Refresque la pagina si el error persiste.");
+                return;
+            }
+
+            kendo.ui.progress($("#gridCapturaVentasDetalle"), true);
+
+            $.ajax({
+                url: '@Url.Action("Guardar", "Ventas")',
+                type: 'POST',
+                data: "entidadSerializada=" + jsonEntidad,
+                success: function (data) {
+                    if (data != null && data.length > 0) {
+                        var Resultado = JSON.parse(data);
+                        var Mensaje = Resultado.Mensaje;
+
+                        if (Resultado.Estatus === "Error") {
+                            MensajeError(Mensaje);
+                        }
+                        else {
+                            MensajeSuccess(Mensaje);
+
+                            if (GuardadrCerrar) {
+                                onClickCancelar(false);
+                            }
+                            else {
+                                LimpiarVentana();
+                            }
+                        }
+
+                        kendo.ui.progress($("#gridCapturaVentasDetalle"), false);
+                    }
+                },
+                error: function () {
+                    kendo.ui.progress($("#gridCapturaVentasDetalle"), false);
+                }
+            });            
+        }
+    }
+
+    function ObtenerEntidad() {
+
+        var idVenta = parseInt($("#IdVenta").val());
+        var idCliente = parseInt($("#IdCliente").val());
+        var enganche = Enganche;
+        var bonEnganche = BonifEnganche;
+        var totalAdeudo = TotalAdeudo;
+
+        var EntidadAbono = JSON.parse($("#AbonoSeleccionado").val());
+
+        var totalPagar = EntidadAbono.TotalPagar;
+        var precioContado = EntidadAbono.PrecioContado;
+        var importeAbono = EntidadAbono.ImporteAbono;
+        var importeAhorro = EntidadAbono.ImporteAhorro;
+        var plazoPago = EntidadAbono.PlazoPago;
+
+        var listaDetalles = gridVentasDetalle.dataItems();
+
+        var EntidadVenta = {
+            IdVenta: idVenta,
+            IdCliente: idCliente,
+            Enganche: enganche,
+            BonificacionEnganche: bonEnganche,
+            TotalAdeudo: totalAdeudo,
+            TotalPagar: totalPagar,
+            PrecioContado: precioContado,
+            ImporteAbono: importeAbono,
+            ImporteAhorro: importeAhorro,
+            PlazoPago: plazoPago,
+            ListaDetalles: listaDetalles
+        };
+
+        return EntidadVenta;
+    }
+
+    function LimpiarVentana() {
+        Enganche = 0;
+        BonifEnganche = 0;
+        TotalAdeudo = 0;
+        ImporteArticulos = 0;
+
+        ClienteCancelado = false;
+        ArticuloSinExistencia = false;
+        ArticuloCancelado = false;
+
+        $("#ClienteRFC").text("");
+        $("#lblFolioVenta").text("");
+
+        $("#IdVenta").val(0);
+        $("#IdCliente").val(0);
+        $("#IdArticulo").val("");
+        $("#txtCliente").val("");
+        $("#txtArticulo").val("");
+        $("#txtEnganche").val(Enganche.toFixed(2));
+        $("#txtBonEnganche").val(BonifEnganche.toFixed(2));
+        $("#txtTotalAdeudo").val(TotalAdeudo.toFixed(2));
+
+        ObtenerVentaConsecutiva();
+        ObtenerEntidadConfiguraciones();
+
+        gridVentasDetalle.dataSource._data.empty();
+
+        var target = $("div[class='body-content']");
+        $(target).animate({ scrollTop: 0 }, 'slow');
+
+        $("#divSiguiente").show("fast");
+        $("#divGuardar").hide("fast");
+        $("#divGuardarCerrar").hide("fast");
+        $("#divParentAbonos").hide("fast");
+
+        var TodosDivs = $($("#divParentAbonos")[0].childNodes).filter("div");
+        $.each(TodosDivs, function (key, item) {
+            $(item).removeClass("div-select");
+            $(item).addClass("div-unselect");
+        });
+
+        $("#div3Abonos").empty();
+        $("#div6Abonos").empty();
+        $("#div9Abonos").empty();
+        $("#div12Abonos").empty();
+        $("#AbonoSeleccionado").val("")
+
+        $("#txtCliente").focus();
+    }
+
+    function esNumero(event) {
+
+    }
+
+    function ValidarExistencia(event) {
+
+        var Entidad = gridVentasDetalle.dataItem($(event.currentTarget).closest("tr"));
+        var input = event.target || event.srcElement;
+        var valor = $(input).val();
+        var tdEdit = gridVentasDetalle.select().find("td[data-id='Cantidad']");
+
+        if (valor != undefined && valor != "" && valor != null) {
+            valor = parseInt(valor);
+        }
+
+        if (valor <= 0)
+        {
+            MensajeError("Es necesario indicar existencia mayor a cero para el Artículo (" + Entidad.IdArticulo + ")");
+
+            gridVentasDetalle.current(tdEdit);
+            gridVentasDetalle.editCell(tdEdit);
+            gridVentasDetalle.select().find("input[name='Cantidad']").select();
+            return;
+        }
+
+        $.get({
+            url: "@Url.Action("ValidarExistencia", "Ventas")",
+            type: "POST",
+            async: false,
+            data: "IdArticulo=" + Entidad.IdArticulo,
+            success: function (data) {
+                var datos = JSON.parse(data);
+                var Resultado = datos.Resultado;
+
+                if (datos.Estatus === "Correcto") {
+                    if (valor > Resultado) {
+                        MensajeError("No es posible exceder la existencia actual del Artículo (" + Entidad.IdArticulo + ")");
+
+                        gridVentasDetalle.current(tdEdit);
+                        gridVentasDetalle.editCell(tdEdit);
+                        gridVentasDetalle.select().find("input[name='Cantidad']").select();
+                    }
+                    else {
+                        CalcularTotales();
+                    }
+                }
+                else if (datos.Estatus === "Error") {
+                    MensajeError(Resultado);
+                    $("#txtArticulo").val("");
+                    $("#IdArticulo").val("");
+                }
+            }
+        });
+    }
+
+    function ValidarInformacion() {
+
+        var idCliente = $("#IdCliente").val();
+        if (idCliente == undefined || idCliente == null || parseInt(idCliente) <= 0) {
+            MensajeError("No es posible continuar debe ingresar el Cliente, es obligatorio.");
+            $("#txtCliente").select();
+            $("#txtCliente").focus();
+            return false;
+        }
+
+        var VentaDetalle = gridVentasDetalle.dataSource._data;
+
+        if (VentaDetalle.length <= 0) {
+            MensajeError("No es posible continuar si no ha indicado ningún Artículo en la Venta.");
+            $("#txtArticulo").select();
+            $("#txtArticulo").focus();
+            return false;
+        }
+
+        $.each(VentaDetalle, function (index, item) {
+            if (item.Cantidad <= 0) {
+                MensajeError("Es necesario indicar existencia mayor a cero para el Artículo (" + item.IdArticulo + ")");
+                return false;
+            }
+
+            if (item.Cantidad > item.Existencia) {
+                MensajeError("No es posible exceder la existencia actual del Artículo (" + Entidad.IdArticulo + ")");
+                return false;
+            }
+        });
+
+        return true;
+    }
+
+    function CalcularAbonos() {
+        //Precio Contado = Total Adeudo / (1 + ((Tasa Financiamiento X Plazo Máximo) / 100))
+        //Total a Pagar = Precio Contado X (1 + (Tasa Financiamiento X Plazo) / 100)
+        //Importe Abono = Total a Pagar / Plazo
+        //Importe Ahorra = Total Adeudo – Total a Pagar
+
+        var Plazo = 3;
+        var PrecioContado = TotalAdeudo / (1 + ((Configuraciones.TasaFinanciamiento * Configuraciones.PlazoMaximo) / 100));
+
+        $("#div3Abonos").empty();
+        $("#div6Abonos").empty();
+        $("#div9Abonos").empty();
+        $("#div12Abonos").empty();
+
+        var TodosDivs = $($("#divParentAbonos")[0].childNodes).filter("div");
+        $.each(TodosDivs, function (keydiv, itemdiv) {
+
+            var TotalPagar = PrecioContado * (1 + (Configuraciones.TasaFinanciamiento * Plazo) / 100);
+            var ImporteAbono = TotalPagar / Plazo;
+            var ImporteAhorro = TotalAdeudo - TotalPagar;
+
+            var itemsH4 = $(itemdiv).context.children;
+
+            $(itemdiv).append("<span style='display:none'>" + Plazo + "</span>");
+            $(itemdiv).append("<h3>" + Plazo + " Abonos de:</h3>");
+            $(itemdiv).append("<b style='font-size:2em;'>$ " + formatoNumero(parseFloat(ImporteAbono)) + "</b>");
+            $(itemdiv).append("<h4>Total a Pagar: <b>$ " + formatoNumero(parseFloat(TotalPagar)) + "</b></h4>");
+            $(itemdiv).append("<h4>Se Ahorra: <b>$ " + formatoNumero(parseFloat(ImporteAhorro)) + "</b></h4>");
+
+            Plazo += 3;
+        });
+    }
+
+    function CalcularTotales() {
+
+        Enganche = 0;
+        $("#txtEnganche").val(Enganche.toFixed(2));
+        BonifEnganche = 0;
+        $("#txtBonEnganche").val(BonifEnganche.toFixed(2));
+        TotalAdeudo = 0;
+        $("#txtTotalAdeudo").val(TotalAdeudo.toFixed(2));
+        ImporteArticulos = 0;
+
+        var VentaDetalle = gridVentasDetalle.dataSource._data;
+
+        $.each(VentaDetalle, function (index, item) {
+            CalcularPrecio(index, item);
+            CalcularImporte(index, item);
+            CalcularEnganche(item);
+            CalcularBonifEnganche(item);
+            CalcularTotalAdeudo(item);
+        });
+
+        CalcularAbonos();
+    }
+
+    function CalcularEnganche(Entidad) {
+        //Enganche = (Porcentaje de Enganche/100) X Importe
+        Enganche += (Configuraciones.PorcentajeEnganche / 100) * Entidad.Importe;
+
+        var EngancheFormat = formatoNumero(parseFloat(Enganche));
+        $("#txtEnganche").val(EngancheFormat);
+    }
+
+    function CalcularBonifEnganche(Entidad) {
+        //Bonificación Enganche = Enganche X ((Tasa Financiamiento X Plazo Máximo) /100)
+        BonifEnganche += Enganche * ((Configuraciones.TasaFinanciamiento * Configuraciones.PlazoMaximo) / 100);
+
+        var BonifEngancheFormat = formatoNumero(parseFloat(BonifEnganche));
+        $("#txtBonEnganche").val(BonifEngancheFormat);
+    }
+
+    function CalcularTotalAdeudo(Entidad) {
+        //Total Adeudo = Importe - Enganche - Bonificación Enganche
+        TotalAdeudo += ImporteArticulos - Enganche - BonifEnganche;
+
+        var TotalAdeudoFormat = formatoNumero(parseFloat(TotalAdeudo));
+        $("#txtTotalAdeudo").val(TotalAdeudoFormat);
+    }
+
+    function CalcularPrecio(index, Entidad) {
+        //Precio = Precio Articulo X (1 + (Tasa Financiamiento X Plazo Máximo) /100)
+        var PrecioInteres = Entidad.Precio * (1 + (Configuraciones.TasaFinanciamiento * Configuraciones.PlazoMaximo) / 100);
+
+        Entidad.PrecioInteres = Math.round(parseFloat(PrecioInteres.toFixed(2)));
+
+        var PrecioInteresFormat = formatoNumero(Entidad.PrecioInteres);
+        $($(gridVentasDetalle.tbody)[0].childNodes[index]).find("td[data-id='PrecioInteres']").text(PrecioInteresFormat);
+    }
+
+    function CalcularImporte(index, Entidad) {
+        //Importe = Precio X Cantidad
+        var Importe = Entidad.PrecioInteres * Entidad.Cantidad;
+        ImporteArticulos += Importe;
+
+        Entidad.Importe = Math.round(parseFloat(Importe.toFixed(2)));
+
+        var ImporteFormat = formatoNumero(Entidad.Importe);
+        $($(gridVentasDetalle.tbody)[0].childNodes[index]).find("td[data-id='Importe']").text(ImporteFormat);
+    }
+
+    function formatoNumero(numero) {
+        return numero.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")
+    }
+
+    function formatoCero(numero, ceros) {
+        var str = ("" + numero);
+        return (Array(Math.max(ceros - str.length, 0)).join("0") + str);
+    }
+</script>

@@ -1,0 +1,83 @@
+﻿.ParametrosFiltros {
+    position: relative;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+hr {
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+}
+
+label {
+    margin-bottom: 0px !important;
+}
+
+.left {
+    float: left;
+}
+
+.right {
+    float: right;
+}
+
+.titlePage {
+    display: inline-block;
+    margin: 20px 0px 20px 0px;
+    width:100%;
+}
+
+.class-button {
+    display: inline-block;
+    transition: all 0.3s;
+    cursor: pointer;
+    min-width: 150px;
+}
+
+    .class-button span {
+        cursor: pointer;
+        display: inline-block;
+        position: relative;
+        transition: all 0.3s;
+        left: -10px;
+    }
+
+    .class-button i {
+        cursor: pointer;
+        display: inline-block;
+        position: relative;
+        transition: 0.5s;
+        opacity: 0;
+        margin-right: 5px;
+        left: 25px;
+    }
+
+    .class-button:hover i {
+        opacity: 1;
+        left: 0;
+    }
+
+    .class-button:hover span {
+        left: 0;
+    }
+
+.green {
+    background-color: #00ac68;
+}
+
+.green-light {
+    background-color: #8bdc64;
+}
+
+.blue {
+    background-color: #283754;
+}
+
+.blue-light {
+    background-color: #1071e2;
+}
+
+.class-grid {
+    position:relative;
+    display:inline-block;
+}

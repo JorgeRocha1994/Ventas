@@ -1,0 +1,378 @@
+﻿@using ConCredito_Vendimia.Models
+
+<!DOCTYPE html>
+<html> 
+    <head>
+        <title>@ViewBag.Title</title>
+
+        <style type="text/css">
+            .label-bar {
+                color: #fff;                
+                margin-top: 15px;
+            }
+
+            .left {
+                float: left;
+                text-align: left;
+            }
+
+            .right {
+                float: right;
+                text-align: right;
+            }
+        </style>
+
+        <link href="@Url.Content("~/Content/bootstrap.css")" rel="stylesheet" type="text/css" />
+
+        @* Content-box fixes as per http://docs.telerik.com/kendo-ui/third-party/using-kendo-with-twitter-bootstrap article  *@
+        <link href="@Url.Content("~/Content/box-sizing-fixes.css")" rel="stylesheet" type="text/css" />
+
+        <link href="@Url.Content("~/Content/Site.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/MyStyles.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/font-awesome.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/font-awesome.min.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/toastr.min.css")" rel="stylesheet" type="text/css" />
+
+        @Scripts.Render("~/bundles/modernizr")
+        @Scripts.Render("~/bundles/jquery")
+
+    	<link href="https://kendo.cdn.telerik.com/2017.3.1026/styles/kendo.common-bootstrap.min.css" rel="stylesheet" type="text/css" />
+	    <link href="https://kendo.cdn.telerik.com/2017.3.1026/styles/kendo.mobile.all.min.css" rel="stylesheet" type="text/css" />
+	    <link href="https://kendo.cdn.telerik.com/2017.3.1026/styles/kendo.bootstrap.min.css" rel="stylesheet" type="text/css" />
+
+	    <script src="https://kendo.cdn.telerik.com/2017.3.1026/js/jquery.min.js"></script>
+	    <script src="https://kendo.cdn.telerik.com/2017.3.1026/js/jszip.min.js"></script>
+	    <script src="https://kendo.cdn.telerik.com/2017.3.1026/js/kendo.all.min.js"></script>
+	    <script src="https://kendo.cdn.telerik.com/2017.3.1026/js/kendo.aspnetmvc.min.js"></script>
+
+        <!-- Scripts para Alertas -->
+        <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+        <script src="@Url.Content("~/Scripts/kendo.modernizr.custom.js")"></script>
+        <script src="@Url.Content("~/Scripts/MyScript.js")"></script>
+	    <script src="@Url.Content("~/Scripts/toastr.min.js")"></script>
+
+        <style>
+
+                #example {
+                    min-height:500px;
+                }
+                #undo {
+                    text-align: center;
+                    position: absolute;
+                    white-space: nowrap;
+                    padding: 1em;
+                    cursor: pointer;
+                }
+                .armchair {
+                	float: left;
+                	margin: 30px 30px 120px 30px;
+                	text-align: center;
+                }
+                .armchair img {
+                    display: block;
+                    margin-bottom: 10px;
+                }
+                .k-window-content a {
+                    color: #BBB;
+                }
+                .k-window-content p {
+                    margin-bottom: 1em;
+                }
+        </style>
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top" style="background-color: #283754">
+        <div class="container">
+            <div id="responsive-panel" class="navbar-left">
+                @(Html.Kendo().Menu()
+                        .Name("Menu")
+                        .Items(items =>
+                        {
+                            items.Add().Text("Ventas").Action("Index", "Home");
+                            items.Add().Text("Clientes").HtmlAttributes(new { onclick = "openWindow(1)" });
+                            items.Add().Text("Artículos").HtmlAttributes(new { onclick = "openWindow(2)" });
+                            //items.Add().Text("Configuración").HtmlAttributes(new { onclick = "openWindow(3)" });
+                        })
+                )
+            </div>
+            <label class="label-bar right">Fecha: @DateTime.Now.ToShortDateString()</label>
+        </div>
+    </div>
+    <div class="body-content">
+        <div class="container">
+            @RenderBody()
+        </div>
+    </div>
+
+    <div id="divModal">
+        <div id="ClientesModal" style="display:none;">
+            @(Html.Kendo()
+            .Grid<Clientes>()
+            .Name("gridClientes")
+            .Columns(columns =>
+            {
+                columns.Bound(p => p.IdCliente).Width("0px").HtmlAttributes(new { id = "IdCliente" }).Format("{0:0000}").Hidden(true);
+                columns.Bound(p => p.Cliente).Title("Nombre").Width("60%").HtmlAttributes(new { id = "Cliente" });
+                columns.Bound(p => p.RFC).Title("RFC").Width("20%").HtmlAttributes(new { id = "RFC" });
+                columns.Bound(p => p.Fecha).Title("Fecha").Width("10%").HtmlAttributes(new { id = "Fecha", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" }).Format("{0:dd/MM/yyyy}");
+                columns.Bound(p => p.Estatus).Title("Estatus").Width("10%").HtmlAttributes(new { id = "Estatus", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" });
+            })
+            .Selectable(selectable => selectable.Mode(GridSelectionMode.Single))
+            .Navigatable()
+            .Scrollable(s => s.Height(250))
+            .AutoBind(false)
+            .Resizable(resize => resize.Columns(true))
+            .DataSource(datasource => datasource
+                .Ajax()
+                .Batch(true)
+                .PageSize(10)
+                .Read(read => read.Action("ObtenerClientes", "Home"))
+            )
+            .Events(GVEvent =>
+            {
+                GVEvent.DataBound("onDataBoundGridClientes");
+            })
+            .Pageable(p => p.ButtonCount(5))
+            )
+        </div>
+        <div id="ArticulosModal" style="display:none;">
+            @(Html.Kendo()
+            .Grid<Articulos>()
+            .Name("gridArticulos")
+            .Columns(columns =>
+            {
+                columns.Bound(p => p.IdArticulo).Title("Clave").Width("10%").HtmlAttributes(new { id = "IdArticulo" });
+                columns.Bound(p => p.Descripcion).Title("Descripción").Width("30%").HtmlAttributes(new { id = "Descripcion" });
+                columns.Bound(p => p.Existencia).Title("Existencia").Width("10%").HtmlAttributes(new { id = "Existencia", style = "text-align: right;" }).HeaderHtmlAttributes(new { style = "text-align: right;" }).Format("{0:#,#0.00}");
+                columns.Bound(p => p.Precio).Title("Precio").Width("10%").HtmlAttributes(new { id = "Precio", style = "text-align: right;" }).HeaderHtmlAttributes(new { style = "text-align: right;" }).Format("{0:#,#0.00}");
+                columns.Bound(p => p.Modelo).Title("Modelo").Width("20%").HtmlAttributes(new { id = "Modelo" });
+                columns.Bound(p => p.Fecha).Title("Fecha").Width("10%").HtmlAttributes(new { id = "Fecha", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" }).Format("{0:dd/MM/yyyy}");
+                columns.Bound(p => p.Estatus).Title("Estatus").Width("10%").HtmlAttributes(new { id = "Estatus", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" });
+            })
+            .Selectable(selectable => selectable.Mode(GridSelectionMode.Single))
+            .Navigatable()
+            .Scrollable(s => s.Height(250))
+            .AutoBind(false)
+            .Resizable(resize => resize.Columns(true))
+            .DataSource(datasource => datasource
+                .Ajax()
+                .Batch(true)
+                .PageSize(10)
+                .Read(read => read.Action("ObtenerArticulos", "Home"))
+            )
+            .Events(GVEvent =>
+            {
+                GVEvent.DataBound("onDataBoundGridArticulos");
+            })
+            .Pageable(p => p.ButtonCount(5))
+            )
+        </div>
+        <div id="ConfiguracionesModal" style="display:none;">
+            @(Html.Kendo()
+            .Grid<Configuraciones>()
+            .Name("gridConfiguraciones")
+            .Columns(columns =>
+            {
+                columns.Bound(p => p.IdConfiguracion).Title("Clave").Width("25%").HtmlAttributes(new { id = "IdConfiguracion" }).Format("{0:0000}");
+                columns.Bound(p => p.TasaFinanciamiento).Title("Tasa Financiamiento").Width("25%").HtmlAttributes(new { id = "TasaFinanciamiento", style = "text-align: right;" }).HeaderHtmlAttributes(new { style = "text-align: right;" }).Format("{0:#,#0.00}");
+                columns.Bound(p => p.PorcentajeEnganche).Title("Porcentaje Enganche").Width("25%").HtmlAttributes(new { id = "PorcentajeEnganche", style = "text-align: center;" }).HeaderHtmlAttributes(new { style = "text-align: center;" });
+                columns.Bound(p => p.PlazoMaximo).Title("Plazo Maximo").Width("25%").HtmlAttributes(new { id = "PlazoMaximo", style = "text-align: right;" }).HeaderHtmlAttributes(new { style = "text-align: right;" });
+            })
+            .Selectable(selectable => selectable.Mode(GridSelectionMode.Single))
+            .Navigatable()
+            .Scrollable(s => s.Height(250))
+            .AutoBind(false)
+            .Resizable(resize => resize.Columns(true))
+            .DataSource(datasource => datasource
+                .Ajax()
+                .Batch(true)
+                .PageSize(10)
+                .Read(read => read.Action("ObtenerConfiguraciones", "Home"))
+            )
+            .Events(GVEvent =>
+            {
+                GVEvent.DataBound("onDataBoundGridConfiguraciones");
+            })
+            .Pageable(p => p.ButtonCount(5))
+            )
+        </div>
+    </div>
+</body>
+</html>
+
+@Scripts.Render("~/bundles/bootstrap")
+@RenderSection("scripts", required: false)
+
+<script>
+
+    var ventanaClientes;
+    var ventanaArticulos;
+    var ventanaConfiguraciones;
+
+    var gridClientes;
+    var gridArticulos;
+    var gridConfiguraciones;
+
+    $(document).ready(function () {
+
+        //Configuración para la Alertas de toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
+
+        gridClientes = $("#gridClientes").data("kendoGrid");
+        gridArticulos = $("#gridArticulos").data("kendoGrid");
+        gridConfiguraciones = $("#gridConfiguraciones").data("kendoGrid");
+
+        $("#responsive-panel").kendoResponsivePanel({
+            breakpoint: 768,
+            autoClose: false,
+            orientation: "top"
+        });
+
+        ventanaClientes = $("#ClientesModal");
+        ventanaClientes.kendoWindow({
+            width: "85%",
+            draggable: false,
+            title: "Clientes",
+            visible: false,
+            modal: true,
+            actions: [
+                "Close"
+            ]
+        });
+
+        ventanaArticulos = $("#ArticulosModal");
+        ventanaArticulos.kendoWindow({
+            width: "85%",
+            draggable: false,
+            title: "Artículos",
+            visible: false,
+            modal: true,
+            actions: [
+                "Close"
+            ]
+        });
+
+        ventanaConfiguraciones = $("#ConfiguracionesModal");
+        ventanaConfiguraciones.kendoWindow({
+            width: "85%",
+            draggable: false,
+            title: "Configuraciones",
+            visible: false,
+            modal: true,
+            actions: [
+                "Close"
+            ]
+        });
+    });
+
+    function MensajeError(mensaje) {
+        var divToastr = $("body").find("div[class='toast toast-error']");
+        if (divToastr.length <= 0) {
+            toastr.error(mensaje);
+        }
+    }
+
+    function MensajeInfo(mensaje) {
+        var divToastr = $("body").find("div[class='toast toast-info']");
+        if (divToastr.length <= 0) {
+            toastr.info(mensaje);
+        }
+    }
+
+    function MensajeWarning(mensaje) {
+        var divToastr = $("body").find("div[class='toast toast-warning']");
+        if (divToastr.length <= 0) {
+            toastr.warning(mensaje);
+        }
+    }
+
+    function MensajeSuccess(mensaje) {
+        var divToastr = $("body").find("div[class='toast toast-success']");
+        if (divToastr.length <= 0) {
+            toastr.success(mensaje);
+        }
+    }
+
+    function onclick(e) {
+        $("#responsive-panel").getKendoResponsivePanel().toggle();
+    }
+
+    function openWindow(enumventana) {
+        switch (enumventana) {
+            case 1:
+                gridClientes.dataSource.read();
+                $("#ClientesModal").css("display", "block");
+                $("#ClientesModal").data("kendoWindow").center().open();
+                break;
+            case 2:
+                gridArticulos.dataSource.read();
+                $("#ArticulosModal").css("display", "block");
+                $("#ArticulosModal").data("kendoWindow").center().open();
+                break;
+            case 3:
+                gridConfiguraciones.dataSource.read();
+                $("#ConfiguracionesModal").css("display", "block");
+                $("#ConfiguracionesModal").data("kendoWindow").center().open();
+                break;
+        }
+    }
+
+    function onDataBoundGridClientes(e) {
+        if (gridClientes == undefined || gridClientes == null) {
+            gridClientes = $("#gridClientes").data("kendoGrid");
+        }
+
+        SeleccionarPrimero(gridClientes, "Clientes");
+    }
+
+    function onDataBoundGridArticulos(e) {
+        if (gridArticulos == undefined || gridArticulos == null) {
+            gridArticulos = $("#gridArticulos").data("kendoGrid");
+        }
+
+        SeleccionarPrimero(gridArticulos, "Artículos");
+    }
+
+    function onDataBoundGridConfiguraciones(e) {
+        if (gridConfiguraciones == undefined || gridConfiguraciones == null) {
+            gridConfiguraciones = $("#gridConfiguraciones").data("kendoGrid");
+        }
+
+        SeleccionarPrimero(gridConfiguraciones, "Configuraciones");
+    }
+
+    function SeleccionarPrimero(Grid, Ventana) {
+        var primerTR = Grid.tbody.children()[0];
+
+        if ($(primerTR).hasClass("k-no-data")) {
+            $(primerTR).remove();
+            MensajeError('No fue posible obtener ningún dato de ' + Ventana + ', Comuníquese con el Administrador del Sitio.');
+        }
+        else {
+            if (Grid.dataSource._data.length <= 0) {
+                $(primerTR).remove();
+                MensajeError('No fue posible obtener ningún dato de ' + Ventana + ', Comuníquese con el Administrador del Sitio.');
+            }
+            else {
+                Grid.select(primerTR);
+            }
+        }
+    }
+</script>
